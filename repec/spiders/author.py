@@ -1,4 +1,5 @@
-# scrapy crawl author -O csv/authors.csv
+# Run with `scrapy crawl author -O csv/authors.csv`
+
 import scrapy
 
 
