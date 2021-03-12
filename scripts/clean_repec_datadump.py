@@ -1,3 +1,4 @@
+import re
 import csv
 from dataclasses import dataclass, asdict
 
@@ -10,7 +11,7 @@ SKIP_WORDS = ['#metoo', '#MeToo', '&#039', '#FlattenTheCurve', 'Being #1',
         '#Euromaidan', 'ISBN # 0-19',
         '#sthash.lcrcLmhg.dpuf', ' Strategy#', '#Portichiusi', '#AllLivesMatter',
         'Indian Premier League Auction#', '&#8208',
-        '#EleNão', '#EleNÃÂ£o', 'erblick #1', # TODO: have encoding fixed
+        '#EleNão', '#EleN', 'erblick #1', # TODO: have encoding fixed
         '#Brexit and #USElection', 'superseded by DP #1546',
         'revision of DP#1516',
         'Working paper #1', 'Working paper #2', 'Working paper #3',
@@ -18,7 +19,12 @@ SKIP_WORDS = ['#metoo', '#MeToo', '&#039', '#FlattenTheCurve', 'Being #1',
         'Working paper #7',
         '&#64256',
         'Regular Economic Report, Issue #',
-        '#EleNÃ£o',
+        'Evidence from EU Regions#',
+        '#Crowdfunding',
+        'Discussion Paper #1',
+        '#Grexit',
+        'Working paper #8',
+        'Australian Evidence on Background Risk and Other Factors#',
 ]
 
 
@@ -45,8 +51,6 @@ class Paper:
             if matched and matched.group(1) == name:
                 return True
         return False
-
-
 
 
 def process_author_line(line, authors, papers):
@@ -114,14 +118,20 @@ def boolean_to_1_0(boo):
     return 1 if boo else 0
 
 
+def list_to_str(l):
+    return '; '.join(l)
+
 def export_cleaned_paper(all_papers_by_id):
-    with open('csv/repect_papers_cleaned_partial.csv', 'w', encoding='utf-8') as f:
+    with open('csv/repect_papers_cleaned.csv', 'w', encoding='utf-8') as f:
         writer = csv.writer(f)
         header_written = False
         for id, paper in all_papers_by_id.items():
             row = asdict(paper)
-            row['has_chinese_author'] = boolean_to_1_0(paper.has_chinese_author)
             row['by_top_author'] = boolean_to_1_0(paper.by_top_author)
+            row['has_chinese_author'] = boolean_to_1_0(paper.has_chinese_author())
+            row['author_names'] = list_to_str(paper.author_names)
+            row['cited_by_ids'] = list_to_str(paper.cited_by_ids)
+
             if not header_written:
                 writer.writerow(list(row.keys()))
                 header_written = True
@@ -132,7 +142,7 @@ def export_cleaned_paper(all_papers_by_id):
 def check_data_completeness():
     papers = set()
     authors = set()
-    with open('csv/wei_authors.csv', encoding='utf-8') as f:
+    with open('csv/wei_authors.csv', encoding='latin-1') as f:
         line = f.readline()
         process_author_line(line, authors, papers)
         while line:
@@ -144,7 +154,7 @@ def check_data_completeness():
 
     expected_paper_ids = set(papers)
     all_papers_by_id = {}
-    with open('csv/wei_papers.csv', encoding='utf-8') as f:
+    with open('csv/wei_papers.csv', encoding='latin-1') as f:
         line = f.readline()
         paper = process_paper_line(line, f)
         if paper:
@@ -170,6 +180,9 @@ def check_data_completeness():
         missing_ids = expected_paper_ids - actual_paper_ids
         with open('csv/missing_repec_paper_ids.csv', 'w') as f:
             f.write('\n'.join(missing_ids))
+
+    top_missing_papers = set(papers) - actual_paper_ids
+    print(f'top level missing papers: {top_missing_papers} papers')
 
     export_cleaned_paper(all_papers_by_id)
 
